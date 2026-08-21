@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // プロジェクトメタ情報（一覧表示・作成・削除）
+    // slug を知っている全員が読める（管理URL経由）
+    match /hearing_projects/{slug} {
+      allow read, write: if true;
+    }
+
+    // ヒアリング入力データ本体
+    // slug を知っている人だけが読み書きできる（URLがパスワード扱い）
+    match /hearings/{slug} {
+      allow read, write: if true;
+    }
+  }
+}
