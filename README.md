@@ -1,43 +1,40 @@
 # Hearing Manager (GROW UP)
 
-複数の案件のクライアント向けヒアリングシートを 1 つのサイトで管理する SPA。
+複数案件のクライアント向けヒアリングシートを 1 つの管理画面で一覧・閲覧・削除する SPA。
 
-- **トップページ** (`index.html`) : プロジェクト一覧 / 新規作成
-- **クライアント用URL** (`?p=<slug>`) : クライアントが入力する画面
-- **管理用URL** (`?p=<slug>&admin=<passphrase>`) : GROW UP 側が閲覧
-- **リセットURL** (`?p=<slug>&reset`) : プロジェクトデータを全削除
+公開URL: https://growup-do.github.io/hearing-manager/
 
-スケジュール管理アプリ (`~/Documents/claude/アプリ/スケジュール`) と同じく、
-1 つの Firebase プロジェクトに複数プロジェクトのデータを保存する構成。
+## 運用フロー（2026.08改訂）
 
-## Firestore データ構造
+1. **ヒアリングシートの作成は Claude の `/hearing-sheet` スキルで行う**
+   （テンプレは愛沢えみり様／VOYAGE 仕様がベース。管理画面に作成機能は無い）
+2. スキルがシートを `sheets/{slug}/` に生成 → GitHub Pages に公開 → Firestore に自動登録
+3. 管理画面のカードから2つの入り口に飛べる
+   - **📝 クライアント入力** … クライアントに送るURL
+   - **🔒 GROW UP 閲覧** … `?admin=<passphrase>` 付きの読み取り専用ビュー（別タブで開く）
+4. **削除はカード右上の「×」**（Firestore の meta + 入力データを削除。静的ファイルの削除は別途 push）
+
+## URL 設計
+
+| URL | 画面 |
+|---|---|
+| `/hearing-manager/` | 管理画面（プロジェクト一覧） |
+| `/hearing-manager/sheets/{slug}/` | 各案件のヒアリングシート（新方式） |
+| `/hearing-manager/sheets/{slug}/?admin={pass}` | GROW UP 閲覧モード |
+| `/hearing-manager/sheets/{slug}/?reset` | データリセット |
+| `/hearing-manager/?p={slug}` | （旧方式）SPA内蔵フォーム。voyage の後方互換用 |
+
+外部リポジトリで公開済みのシート（例: `voyage-design-hearing`）は Firestore の
+`externalUrl` に登録すればカードの入り口がそちらを向く。
+
+## Firestore（voyage-hearing-growup / 全案件共通）
 
 ```
-hearing_projects/{slug}   →  { name, project, purpose, adminPassphrase, createdAt, updatedAt, createdYm }
-hearings/{slug}           →  { data: {...フォーム値}, updatedAt }
+hearing_projects/{slug}  → { name, project, purpose, adminPassphrase, externalUrl, templateId, createdAt, updatedAt, createdYm }
+hearings/{slug}          → { data: {...フォーム値}, updatedAt }
 ```
 
-## セットアップ
-
-現在の `index.html` は `voyage-hearing-growup` の Firebase 設定を再利用しています。
-そのままだと Firestore のセキュリティルールが厳しく `permission-denied` になります。
-
-**A. 既存の voyage-hearing-growup を使う場合**
-
-Firebase Console → Firestore Database → ルール で `firestore.rules` の内容に差し替え。
-
-```
-firebase deploy --only firestore:rules
-```
-
-でもデプロイ可能（`.firebaserc` に `voyage-hearing-growup` を指定して）。
-
-**B. 新規 Firebase プロジェクトを作る場合**
-
-1. Firebase Console で新規プロジェクト作成（例: `growup-hearing-manager`）
-2. Firestore Database を有効化
-3. `index.html` の `window.FIREBASE_CONFIG = {...}` を書き換え
-4. `firestore.rules` をデプロイ
+ルール（deploy 済み）: 両コレクションとも read/write 全開放（URL秘匿運用）。
 
 ## ローカル動作確認
 
@@ -46,19 +43,9 @@ python3 -m http.server 8765
 open http://localhost:8765
 ```
 
-Firebase 未接続でも localStorage で動作します（プロジェクト一覧・入力データ両方）。
-
 ## デプロイ
 
-GitHub Pages を想定：
-
 ```bash
-git init -b main
-git add -A
-git commit -m "Initial: hearing manager"
-gh repo create growup-do/hearing-manager --public --source=. --push
-gh api -X POST repos/growup-do/hearing-manager/pages \
-  --raw-field 'source[branch]=main' --raw-field 'source[path]=/'
+git add -A && git commit -m "..." && git push
+# GitHub Pages が main ブランチから自動ビルド（30〜60秒）
 ```
-
-公開URL: `https://growup-do.github.io/hearing-manager/`

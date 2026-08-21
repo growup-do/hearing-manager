@@ -622,22 +622,25 @@
     letter-spacing: 1px;
     font-family: "DM Sans", sans-serif;
   }
-  .selector-toolbar {
+  .selector-note {
     width: 100%;
     max-width: 960px;
     background: rgba(255,255,255,.04);
     border: 1px solid rgba(255,255,255,.08);
     border-radius: 12px;
-    padding: 24px;
+    padding: 16px 24px;
     margin-bottom: 24px;
+    font-size: 13px;
+    color: rgba(255,255,255,.65);
+    line-height: 1.7;
   }
-  .selector-toolbar h3 {
-    font-size: 12px;
-    font-family: "DM Sans", sans-serif;
-    letter-spacing: 2px;
+  .selector-note code {
+    background: rgba(255,241,0,.12);
     color: var(--yellow);
-    margin-bottom: 14px;
-    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: "SF Mono", "Consolas", monospace;
   }
   .new-project-form {
     display: grid;
@@ -971,36 +974,8 @@
     <div class="selector-sub">CLIENT HEARING PROJECTS</div>
   </div>
 
-  <div class="selector-toolbar">
-    <h3>+ NEW PROJECT</h3>
-    <div class="new-project-form">
-      <select id="np_template" class="full" onchange="onTemplateChange('np')">
-        <option value="web">#webサイト制作ヒアリング</option>
-        <option value="logo">#ロゴデザインヒアリングシート</option>
-        <option value="brochure">#パンフレットデザインヒアリングシート</option>
-      </select>
-      <input type="text" id="np_client" placeholder="クライアント名（例：愛沢えみり 様）" />
-      <input type="text" id="np_project" placeholder="プロジェクト名（例：VOYAGE 公式サイト）" />
-      <input type="text" id="np_purpose" class="full" placeholder="ヒアリング目的" value="デザインヒアリング" />
-      <button type="button" onclick="createNewHearing()">作成する</button>
-    </div>
-    <details style="margin-top:14px;">
-      <summary style="cursor:pointer;font-size:11px;color:rgba(255,255,255,.5);font-family:'DM Sans',sans-serif;letter-spacing:1.5px;">▸ 既存プロジェクトを追加 / IMPORT EXISTING</summary>
-      <div class="new-project-form" style="margin-top:12px;">
-        <select id="ip_template" class="full" onchange="onTemplateChange('ip')">
-          <option value="web">#webサイト制作ヒアリング</option>
-          <option value="logo">#ロゴデザインヒアリングシート</option>
-          <option value="brochure">#パンフレットデザインヒアリングシート</option>
-        </select>
-        <input type="text" id="ip_slug" placeholder="slug（例：voyage）" />
-        <input type="text" id="ip_pass" placeholder="admin passphrase（例：growup2026voyage）" />
-        <input type="text" id="ip_client" placeholder="クライアント名（例：愛沢えみり 様）" />
-        <input type="text" id="ip_project" placeholder="プロジェクト名（例：VOYAGE 公式サイト）" />
-        <input type="text" id="ip_purpose" class="full" placeholder="目的" value="デザインヒアリング" />
-        <input type="url" id="ip_external" class="full" placeholder="外部URL（任意：別ドメインで公開済みの場合）" />
-        <button type="button" onclick="importExistingHearing()">追加する</button>
-      </div>
-    </details>
+  <div class="selector-note">
+    新しいヒアリングシートは Claude（<code>/hearing-sheet</code>）で作成すると、ここに自動で追加されます。
   </div>
 
   <div class="project-list" id="projectList"></div>
@@ -2236,22 +2211,6 @@ async function bootstrap(){
 }
 
 // ============= プロジェクト管理関数 =============
-function generateSlug(base){
-  // 短いランダムID (英数字8文字) を生成
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let id = "";
-  for (let i = 0; i < 8; i++) id += chars[Math.floor(Math.random() * chars.length)];
-  return id;
-}
-
-function generatePassphrase(){
-  const year = new Date().getFullYear();
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let s = "";
-  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
-  return "growup" + year + s;
-}
-
 function getProjectListFromLocal(){
   try { return JSON.parse(localStorage.getItem(PROJECT_LIST_KEY) || "[]"); }
   catch(e){ return []; }
@@ -2405,113 +2364,6 @@ function openHearing(slug, mode){
   else location.href = url;
 }
 
-function onTemplateChange(prefix){
-  const sel = document.getElementById(prefix + "_template");
-  const purposeInput = document.getElementById(prefix + "_purpose");
-  if (!sel || !purposeInput) return;
-  const tpl = TEMPLATES[sel.value];
-  if (tpl) purposeInput.value = tpl.purpose_default;
-}
-
-async function createNewHearing(){
-  const client = document.getElementById("np_client").value.trim();
-  const project = document.getElementById("np_project").value.trim();
-  const purpose = document.getElementById("np_purpose").value.trim() || "デザインヒアリング";
-  const templateId = document.getElementById("np_template").value || DEFAULT_TEMPLATE_ID;
-  if (!client){ alert("クライアント名を入力してください"); return; }
-
-  const slug = generateSlug(client);
-  const now = new Date();
-  const meta = {
-    id: slug,
-    name: client,
-    project: project,
-    purpose: purpose,
-    templateId: templateId,
-    adminPassphrase: generatePassphrase(),
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    createdYm: now.getFullYear() + "." + String(now.getMonth()+1).padStart(2,"0")
-  };
-
-  // ローカル保存
-  upsertProjectLocal(meta);
-
-  // Firestore 保存
-  if (window._selectorFs){
-    try {
-      const { fs, db: _db } = window._selectorFs;
-      await fs.setDoc(fs.doc(_db, "hearing_projects", slug), {
-        name: meta.name,
-        project: meta.project,
-        purpose: meta.purpose,
-        templateId: meta.templateId,
-        adminPassphrase: meta.adminPassphrase,
-        createdYm: meta.createdYm,
-        createdAt: fs.serverTimestamp(),
-        updatedAt: fs.serverTimestamp()
-      });
-    } catch(e){ console.warn("プロジェクト作成クラウド保存失敗:", e); }
-  }
-
-  // 作成後、URL・パスワード表示 → その後開く
-  showUrlModal(slug);
-}
-
-async function importExistingHearing(){
-  const slug = document.getElementById("ip_slug").value.trim().toLowerCase();
-  const pass = document.getElementById("ip_pass").value.trim();
-  const client = document.getElementById("ip_client").value.trim();
-  const project = document.getElementById("ip_project").value.trim();
-  const purpose = document.getElementById("ip_purpose").value.trim() || "デザインヒアリング";
-  const external = document.getElementById("ip_external").value.trim();
-  const templateId = document.getElementById("ip_template").value || DEFAULT_TEMPLATE_ID;
-  if (!slug){ alert("slug を入力してください（英数字小文字）"); return; }
-  if (!/^[a-z0-9_-]+$/.test(slug)){ alert("slug は英数字・ハイフン・アンダースコアのみ使用可能です"); return; }
-  if (!client){ alert("クライアント名を入力してください"); return; }
-
-  const now = new Date();
-  const meta = {
-    id: slug,
-    name: client,
-    project: project,
-    purpose: purpose,
-    templateId: templateId,
-    adminPassphrase: pass,
-    externalUrl: external || "",
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    createdYm: now.getFullYear() + "." + String(now.getMonth()+1).padStart(2,"0")
-  };
-
-  upsertProjectLocal(meta);
-
-  if (window._selectorFs){
-    try {
-      const { fs, db: _db } = window._selectorFs;
-      await fs.setDoc(fs.doc(_db, "hearing_projects", slug), {
-        name: meta.name,
-        project: meta.project,
-        purpose: meta.purpose,
-        templateId: meta.templateId,
-        adminPassphrase: meta.adminPassphrase,
-        externalUrl: meta.externalUrl,
-        createdYm: meta.createdYm,
-        createdAt: fs.serverTimestamp(),
-        updatedAt: fs.serverTimestamp()
-      }, { merge: true });
-    } catch(e){
-      console.warn("既存プロジェクト追加のクラウド保存失敗:", e);
-      alert("クラウド保存に失敗しました。ローカルには追加されました。\n" + (e.message || e));
-    }
-  }
-
-  // フォームをクリア
-  ["ip_slug","ip_pass","ip_client","ip_project","ip_external"].forEach(id => document.getElementById(id).value = "");
-  showUrlModal(slug);
-  renderProjectList(getProjectListFromLocal());
-}
-
 async function deleteHearing(slug){
   const meta = getProjectFromLocal(slug);
   const label = meta ? (meta.name + " / " + (meta.project || "")) : slug;
@@ -2572,9 +2424,6 @@ function copyUrl(id, btn){
 }
 
 // window に公開
-window.createNewHearing = createNewHearing;
-window.importExistingHearing = importExistingHearing;
-window.onTemplateChange = onTemplateChange;
 window.deleteHearing = deleteHearing;
 window.openHearing = openHearing;
 window.showUrlModal = showUrlModal;
