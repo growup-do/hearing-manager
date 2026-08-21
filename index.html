@@ -662,6 +662,22 @@
     background: rgba(255,255,255,.09);
   }
   .new-project-form input::placeholder { color: rgba(255,255,255,.35); }
+  .new-project-form select {
+    color: var(--yellow);
+    font-weight: 600;
+    letter-spacing: .5px;
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, rgba(255,241,0,.7) 50%),
+                      linear-gradient(135deg, rgba(255,241,0,.7) 50%, transparent 50%);
+    background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+    padding-right: 36px;
+  }
+  .new-project-form select option {
+    background: var(--black);
+    color: var(--yellow);
+  }
   .new-project-form .full { grid-column: 1 / -1; }
   .new-project-form button {
     grid-column: 1 / -1;
@@ -716,6 +732,51 @@
     letter-spacing: 1px;
     text-transform: uppercase;
     margin-bottom: 12px;
+  }
+  .project-card .p-tag {
+    display: inline-block;
+    font-size: 10px;
+    letter-spacing: .5px;
+    background: #fff9c4;
+    color: #6b6300;
+    padding: 3px 8px;
+    border-radius: 3px;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  .project-card .p-entries {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .project-card .p-entry {
+    padding: 10px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all .15s;
+    font-family: inherit;
+  }
+  .project-card .p-entry-client {
+    background: var(--yellow);
+    color: var(--black);
+    border-color: var(--yellow);
+  }
+  .project-card .p-entry-client:hover {
+    filter: brightness(.95);
+    transform: translateY(-1px);
+  }
+  .project-card .p-entry-admin {
+    background: var(--black);
+    color: var(--yellow);
+    border-color: var(--black);
+  }
+  .project-card .p-entry-admin:hover {
+    background: #333;
+    transform: translateY(-1px);
   }
   .project-card .p-meta {
     display: flex;
@@ -913,19 +974,29 @@
   <div class="selector-toolbar">
     <h3>+ NEW PROJECT</h3>
     <div class="new-project-form">
+      <select id="np_template" class="full" onchange="onTemplateChange('np')">
+        <option value="web">#webサイト制作ヒアリング</option>
+        <option value="logo">#ロゴデザインヒアリングシート</option>
+        <option value="brochure">#パンフレットデザインヒアリングシート</option>
+      </select>
       <input type="text" id="np_client" placeholder="クライアント名（例：愛沢えみり 様）" />
       <input type="text" id="np_project" placeholder="プロジェクト名（例：VOYAGE 公式サイト）" />
-      <input type="text" id="np_purpose" class="full" placeholder="ヒアリング目的（例：デザインヒアリング）" value="デザインヒアリング" />
+      <input type="text" id="np_purpose" class="full" placeholder="ヒアリング目的" value="デザインヒアリング" />
       <button type="button" onclick="createNewHearing()">作成する</button>
     </div>
     <details style="margin-top:14px;">
       <summary style="cursor:pointer;font-size:11px;color:rgba(255,255,255,.5);font-family:'DM Sans',sans-serif;letter-spacing:1.5px;">▸ 既存プロジェクトを追加 / IMPORT EXISTING</summary>
       <div class="new-project-form" style="margin-top:12px;">
+        <select id="ip_template" class="full" onchange="onTemplateChange('ip')">
+          <option value="web">#webサイト制作ヒアリング</option>
+          <option value="logo">#ロゴデザインヒアリングシート</option>
+          <option value="brochure">#パンフレットデザインヒアリングシート</option>
+        </select>
         <input type="text" id="ip_slug" placeholder="slug（例：voyage）" />
         <input type="text" id="ip_pass" placeholder="admin passphrase（例：growup2026voyage）" />
         <input type="text" id="ip_client" placeholder="クライアント名（例：愛沢えみり 様）" />
         <input type="text" id="ip_project" placeholder="プロジェクト名（例：VOYAGE 公式サイト）" />
-        <input type="text" id="ip_purpose" class="full" placeholder="目的（例：デザインヒアリング）" value="デザインヒアリング" />
+        <input type="text" id="ip_purpose" class="full" placeholder="目的" value="デザインヒアリング" />
         <input type="url" id="ip_external" class="full" placeholder="外部URL（任意：別ドメインで公開済みの場合）" />
         <button type="button" onclick="importExistingHearing()">追加する</button>
       </div>
@@ -1008,6 +1079,7 @@
     言葉で表現しづらい項目は、URL・画像・参考写真・SNS投稿リンク等で示していただけると大変助かります。
   </div>
 
+  <div id="tocContainer">
   <div class="toc">
     <h3>CONTENTS</h3>
     <ol>
@@ -1024,6 +1096,7 @@
       <li><a href="#s12">承認フロー</a></li>
       <li><a href="#s13">その他</a></li>
     </ol>
+  </div>
   </div>
 
   <form id="form">
@@ -1596,7 +1669,321 @@ const PROJECT_SLUG = URL_PARAMS.get("p") || "";
 const STORAGE_KEY = PROJECT_SLUG ? ("hearing_data_" + PROJECT_SLUG) : "hearing_data_none";
 const DOC_ID = PROJECT_SLUG;
 let ADMIN_PASSPHRASE = "";           // プロジェクトのメタから動的に読み込む
-let CURRENT_PROJECT_META = null;     // {name, project, purpose, adminPassphrase, ...}
+let CURRENT_PROJECT_META = null;     // {name, project, purpose, adminPassphrase, templateId, ...}
+
+// ============= ヒアリングテンプレート定義 =============
+// 各テンプレートは以下の型:
+//   { id, label, hashtag, brand_en, purpose_default, sections: [...] }
+// 各 section: { id, num, code, title, subtitle, fields: [...] }
+// 各 field:   { type, label, help?, key?, keys?, group?, options?, placeholder? }
+//   type: text | url | email | textarea | triple | radio | radio_block | checkbox
+
+const TEMPLATE_WEB = { id: "web", __hardcoded: true, label: "Webサイト制作ヒアリング", hashtag: "#webサイト制作ヒアリング", brand_en: "DESIGN HEARING SHEET", purpose_default: "デザインヒアリング" };
+
+const TEMPLATE_LOGO = {
+  id: "logo",
+  label: "ロゴデザインヒアリングシート",
+  hashtag: "#ロゴデザインヒアリングシート",
+  brand_en: "LOGO DESIGN HEARING SHEET",
+  purpose_default: "ロゴデザインヒアリング",
+  toc: [
+    { id: "s1", label: "ブランドの核" },
+    { id: "s2", label: "使用シーン" },
+    { id: "s3", label: "テイスト・トーン" },
+    { id: "s4", label: "参考ロゴ" },
+    { id: "s5", label: "カラー" },
+    { id: "s6", label: "タイポグラフィ" },
+    { id: "s7", label: "モチーフ・要素" },
+    { id: "s8", label: "NG・タブー" },
+    { id: "s9", label: "納品形式" },
+    { id: "s10", label: "承認・その他" }
+  ],
+  sections: [
+    { id: "s1", num: "01", code: "BRAND CORE", title: "ブランドの核", subtitle: "ロゴが背負う「意味」を言語化します。", fields: [
+      { type: "text", key: "l_brandname", label: "ブランド名 / 社名（表記そのまま）" },
+      { type: "text", key: "l_reading", label: "読み方（ふりがな・英字読み等）" },
+      { type: "textarea", key: "l_meaning", label: "ブランド名の由来・意味" },
+      { type: "textarea", key: "l_oneline", label: "ブランドを一文（30字以内）で言うと？" },
+      { type: "triple", keys: ["l_val1","l_val2","l_val3"], placeholders: ["①","②","③"], label: "大事にしている価値観を3つ" },
+      { type: "textarea", key: "l_target", label: "顧客・ターゲット像（誰に届けたい？）" },
+      { type: "textarea", key: "l_competitor", label: "競合・比較されがちなブランドは？" }
+    ]},
+    { id: "s2", num: "02", code: "USAGE", title: "使用シーン・媒体", subtitle: "ロゴが実際に載る場所を確認します。", fields: [
+      { type: "checkbox", group: "l_use", label: "使用予定の媒体（複数選択可）", options: [
+        {v:"名刺"},{v:"封筒・レターヘッド"},{v:"Webサイト"},{v:"SNSアイコン"},{v:"看板・サイン"},
+        {v:"パンフレット"},{v:"パッケージ"},{v:"アパレル（Tシャツ等）"},{v:"車両・のぼり"},{v:"動画・映像"}
+      ]},
+      { type: "textarea", key: "l_use_other", label: "その他の使用媒体があれば" },
+      { type: "radio", group: "l_min_size", label: "最小使用サイズの想定", options: [
+        {v:"小（favicon 16px等）"},{v:"中（名刺サイズ）"},{v:"大（看板・掲示物中心）"}
+      ]},
+      { type: "radio", group: "l_bg", label: "背景色の想定", options: [
+        {v:"白背景中心"},{v:"黒/暗色背景中心"},{v:"写真や色物の上"},{v:"両方使う"}
+      ]}
+    ]},
+    { id: "s3", num: "03", code: "TONE", title: "テイスト・トーン", subtitle: "感覚的な軸を揃えます。", fields: [
+      { type: "radio", group: "l_form", label: "形の方向性", options: [
+        {v:"シンボル＋文字（コンビネーション）"},{v:"文字のみ（ワードマーク）"},{v:"シンボルのみ"},{v:"任せる"}
+      ]},
+      { type: "radio", group: "l_temp", label: "温度感", options: [
+        {v:"冷たい"},{v:"涼しい"},{v:"中庸"},{v:"温かい"},{v:"熱い"}
+      ]},
+      { type: "radio", group: "l_style", label: "スタイル", options: [
+        {v:"モダン・シャープ"},{v:"クラシック・伝統"},{v:"手書き・有機的"},{v:"幾何学・ミニマル"},{v:"ポップ・遊び心"}
+      ]},
+      { type: "radio", group: "l_weight", label: "重さ", options: [
+        {v:"軽やか・繊細"},{v:"中庸"},{v:"重厚・力強い"}
+      ]},
+      { type: "text", key: "l_adjs", label: "3〜5語の形容詞で表すなら", placeholder: "例：凛とした / 誠実 / 洗練" }
+    ]},
+    { id: "s4", num: "04", code: "REFERENCES", title: "参考ロゴ・イメージ", subtitle: "「これに近い」「この空気」の共有。", fields: [
+      { type: "textarea", key: "l_ref_like", label: "好きなロゴ・参考にしたいロゴ（URL・ブランド名・画像リンク等）", help: "3〜5個あると精度が上がります" },
+      { type: "textarea", key: "l_ref_why", label: "なぜそれが好きか（一言でも）" },
+      { type: "textarea", key: "l_ref_avoid", label: "こうはしたくない、というロゴ" }
+    ]},
+    { id: "s5", num: "05", code: "COLOR", title: "カラー", subtitle: "配色の指定・希望。", fields: [
+      { type: "radio", group: "l_color_mode", label: "色の方向性", options: [
+        {v:"指定色あり（下に記入）"},{v:"モノクロ中心"},{v:"任せる（提案してほしい）"}
+      ]},
+      { type: "text", key: "l_color_main", label: "メインカラー（HEX / 名称 / 参考URL）" },
+      { type: "text", key: "l_color_sub", label: "サブカラー（あれば）" },
+      { type: "textarea", key: "l_color_ng", label: "避けたい色・NG色" }
+    ]},
+    { id: "s6", num: "06", code: "TYPOGRAPHY", title: "タイポグラフィ", subtitle: "文字部分の書体・雰囲気。", fields: [
+      { type: "radio", group: "l_type_lang", label: "使用する文字", options: [
+        {v:"日本語のみ"},{v:"英字のみ"},{v:"日本語＋英字併記"}
+      ]},
+      { type: "radio", group: "l_type_style", label: "書体のニュアンス", options: [
+        {v:"明朝・セリフ（品格）"},{v:"ゴシック・サンセリフ（現代的）"},{v:"手書き・スクリプト"},{v:"ディスプレイ（造形性）"},{v:"任せる"}
+      ]},
+      { type: "textarea", key: "l_type_note", label: "書体に関するその他の希望" }
+    ]},
+    { id: "s7", num: "07", code: "MOTIF", title: "モチーフ・入れたい要素", subtitle: "象徴・意味を持たせたい要素。", fields: [
+      { type: "textarea", key: "l_motif_want", label: "入れたいモチーフ・要素（動物・自然物・幾何形・イニシャル等）" },
+      { type: "textarea", key: "l_motif_story", label: "そのモチーフに込めたい意味・ストーリー" },
+      { type: "textarea", key: "l_motif_avoid", label: "使いたくないモチーフ" }
+    ]},
+    { id: "s8", num: "08", code: "NG / TABOO", title: "NG・タブー", subtitle: "絶対に避けたい表現。", fields: [
+      { type: "textarea", key: "l_ng_expr", label: "宗教的・文化的・業界的にNGな表現があれば" },
+      { type: "textarea", key: "l_ng_visual", label: "「この方向性は絶対NG」というものがあれば" }
+    ]},
+    { id: "s9", num: "09", code: "DELIVERY", title: "納品形式", subtitle: "必要なデータ形式。", fields: [
+      { type: "checkbox", group: "l_formats", label: "必要な形式（複数選択可）", options: [
+        {v:"AI（Illustrator）"},{v:"SVG"},{v:"PDF"},{v:"PNG（透過）"},{v:"JPG"},{v:"EPS"}
+      ]},
+      { type: "checkbox", group: "l_variations", label: "必要なバリエーション", options: [
+        {v:"カラー版"},{v:"モノクロ版（黒）"},{v:"白抜き版"},{v:"タテ組み"},{v:"ヨコ組み"},{v:"シンボルのみ"}
+      ]},
+      { type: "textarea", key: "l_delivery_note", label: "その他納品に関する希望" }
+    ]},
+    { id: "s10", num: "10", code: "APPROVAL", title: "承認フロー・その他", subtitle: "決裁の流れ・共有事項。", fields: [
+      { type: "textarea", key: "l_approver", label: "最終決裁者（お名前・立場）" },
+      { type: "textarea", key: "l_deadline", label: "希望納期" },
+      { type: "textarea", key: "l_budget", label: "予算感（差し支えなければ）" },
+      { type: "textarea", key: "l_other", label: "その他伝えたいこと" }
+    ]}
+  ]
+};
+
+const TEMPLATE_BROCHURE = {
+  id: "brochure",
+  label: "パンフレットデザインヒアリングシート",
+  hashtag: "#パンフレットデザインヒアリングシート",
+  brand_en: "BROCHURE DESIGN HEARING SHEET",
+  purpose_default: "パンフレットデザインヒアリング",
+  toc: [
+    { id: "s1", label: "概要・目的" },
+    { id: "s2", label: "ターゲット" },
+    { id: "s3", label: "仕様（サイズ・ページ）" },
+    { id: "s4", label: "掲載内容" },
+    { id: "s5", label: "トーン・世界観" },
+    { id: "s6", label: "参考・ムード" },
+    { id: "s7", label: "カラー" },
+    { id: "s8", label: "タイポグラフィ" },
+    { id: "s9", label: "素材・支給物" },
+    { id: "s10", label: "納品・印刷" },
+    { id: "s11", label: "予算・スケジュール" },
+    { id: "s12", label: "承認・その他" }
+  ],
+  sections: [
+    { id: "s1", num: "01", code: "OVERVIEW", title: "概要・目的", subtitle: "パンフレットの役割を明確にします。", fields: [
+      { type: "text", key: "br_title", label: "パンフレットのタイトル・仮題" },
+      { type: "textarea", key: "br_purpose", label: "パンフレットの目的（何のために作る？）", help: "例：会社案内 / 商品カタログ / 学校案内 / イベント告知 等" },
+      { type: "textarea", key: "br_goal", label: "読み終わった後、読者にどうなってほしい？", help: "例：問い合わせしたくなる / 資料請求 / 来店 / 応募 / 記憶に残る" },
+      { type: "radio", group: "br_where", label: "配布シーン", options: [
+        {v:"営業訪問時に手渡し"},{v:"店頭・受付に設置"},{v:"郵送・DM"},{v:"イベント・展示会で配布"},{v:"複数（下に記入）"}
+      ]},
+      { type: "textarea", key: "br_where_other", label: "配布シーンの補足" }
+    ]},
+    { id: "s2", num: "02", code: "TARGET", title: "ターゲット", subtitle: "誰に読んでほしいかを共有します。", fields: [
+      { type: "textarea", key: "br_target_who", label: "メインターゲット（年代・性別・職業・状況）" },
+      { type: "textarea", key: "br_target_state", label: "そのターゲットは今どんな状態？（悩み・関心）" },
+      { type: "textarea", key: "br_target_2nd", label: "サブターゲット（あれば）" }
+    ]},
+    { id: "s3", num: "03", code: "SPEC", title: "仕様（サイズ・ページ数）", subtitle: "物理的な規格を決めます。", fields: [
+      { type: "radio", group: "br_size", label: "サイズ", options: [
+        {v:"A4"},{v:"A5"},{v:"B5"},{v:"変形（下に記入）"}
+      ]},
+      { type: "text", key: "br_size_custom", label: "変形サイズの場合、寸法（mm）" },
+      { type: "radio", group: "br_form", label: "形態", options: [
+        {v:"1枚モノ（両面）"},{v:"2つ折り"},{v:"3つ折り（Z折り/巻き折り）"},{v:"中綴じ冊子"},{v:"無線綴じ冊子"}
+      ]},
+      { type: "text", key: "br_pages", label: "総ページ数（表紙含む）" },
+      { type: "radio", group: "br_orient", label: "向き", options: [
+        {v:"タテ"},{v:"ヨコ"},{v:"任せる"}
+      ]}
+    ]},
+    { id: "s4", num: "04", code: "CONTENTS", title: "掲載内容", subtitle: "掲載するコンテンツの構成。", fields: [
+      { type: "textarea", key: "br_contents", label: "掲載したい内容（章立て・見出しレベルで）", help: "例：\n- 表紙\n- 代表メッセージ\n- 事業内容\n- 実績・お客様の声\n- 会社概要\n- 裏表紙・お問い合わせ" },
+      { type: "textarea", key: "br_must", label: "必ず入れたい要素・キーメッセージ" },
+      { type: "textarea", key: "br_wording", label: "使いたい言い回し・キャッチコピー（あれば）" }
+    ]},
+    { id: "s5", num: "05", code: "TONE", title: "トーン・世界観", subtitle: "紙面から立ちのぼる空気。", fields: [
+      { type: "radio", group: "br_temp", label: "温度感", options: [
+        {v:"冷たい"},{v:"涼しい"},{v:"中庸"},{v:"温かい"},{v:"熱い"}
+      ]},
+      { type: "radio", group: "br_style", label: "スタイル", options: [
+        {v:"シンプル・ミニマル"},{v:"高級・上質"},{v:"親しみやすい・カジュアル"},{v:"モダン・エッジ"},{v:"クラシック・伝統"}
+      ]},
+      { type: "radio", group: "br_density", label: "情報の密度感", options: [
+        {v:"余白多め（読みやすさ優先）"},{v:"バランス"},{v:"情報量重視（隅々まで載せたい）"}
+      ]},
+      { type: "text", key: "br_adjs", label: "3〜5語の形容詞で表すなら", placeholder: "例：誠実 / 上品 / 静か / 芯がある" }
+    ]},
+    { id: "s6", num: "06", code: "REFERENCES", title: "参考・ムード", subtitle: "「これが近い」の共有。", fields: [
+      { type: "textarea", key: "br_ref_like", label: "参考にしたいパンフレット・雑誌・広告など（画像リンク・URL・書名）" },
+      { type: "textarea", key: "br_ref_why", label: "なぜそれが近い？（雰囲気・レイアウト・色・書体…）" },
+      { type: "textarea", key: "br_ref_avoid", label: "こうはしたくない、というもの" }
+    ]},
+    { id: "s7", num: "07", code: "COLOR", title: "カラー", subtitle: "配色の方針。", fields: [
+      { type: "radio", group: "br_color_mode", label: "色の方向性", options: [
+        {v:"CI/ロゴの色を軸に"},{v:"新規に配色"},{v:"モノトーン中心"},{v:"任せる"}
+      ]},
+      { type: "text", key: "br_color_main", label: "メインカラー" },
+      { type: "text", key: "br_color_accent", label: "アクセントカラー" },
+      { type: "textarea", key: "br_color_ng", label: "避けたい色" }
+    ]},
+    { id: "s8", num: "08", code: "TYPOGRAPHY", title: "タイポグラフィ", subtitle: "書体・可読性の方針。", fields: [
+      { type: "radio", group: "br_type", label: "見出しの書体", options: [
+        {v:"明朝（品格）"},{v:"ゴシック（現代的）"},{v:"混在"},{v:"任せる"}
+      ]},
+      { type: "radio", group: "br_body_size", label: "本文のサイズ感（読み手層）", options: [
+        {v:"標準"},{v:"やや大きめ（シニア層想定）"},{v:"やや小さめ（情報量重視）"}
+      ]}
+    ]},
+    { id: "s9", num: "09", code: "ASSETS", title: "素材・支給物", subtitle: "使える素材の確認。", fields: [
+      { type: "checkbox", group: "br_assets", label: "支給できる素材（複数選択可）", options: [
+        {v:"ロゴデータ"},{v:"写真素材"},{v:"原稿テキスト"},{v:"図版・グラフ元データ"},{v:"CI/VIガイドライン"},{v:"過去のパンフレット（PDF等）"}
+      ]},
+      { type: "radio", group: "br_photo", label: "写真撮影は必要？", options: [
+        {v:"不要（支給あり）"},{v:"素材購入で対応"},{v:"新規撮影を検討"},{v:"任せる"}
+      ]},
+      { type: "textarea", key: "br_asset_note", label: "素材に関する補足" }
+    ]},
+    { id: "s10", num: "10", code: "PRINT", title: "納品・印刷", subtitle: "印刷まで含めるか、データ納品か。", fields: [
+      { type: "radio", group: "br_delivery", label: "納品方式", options: [
+        {v:"印刷までお願いしたい"},{v:"入稿データ納品（印刷は別発注）"},{v:"未定"}
+      ]},
+      { type: "text", key: "br_print_qty", label: "印刷部数（印刷含む場合）" },
+      { type: "text", key: "br_paper", label: "希望紙質・仕上げ（あれば）", placeholder: "例：マットコート、上質紙、PP加工 等" },
+      { type: "textarea", key: "br_print_note", label: "印刷に関する補足" }
+    ]},
+    { id: "s11", num: "11", code: "SCHEDULE", title: "予算・スケジュール", subtitle: "動かしやすさに直結する情報。", fields: [
+      { type: "text", key: "br_deadline", label: "希望納期・使用開始日" },
+      { type: "textarea", key: "br_milestones", label: "途中で必要な締切（社内承認・イベント日 等）" },
+      { type: "text", key: "br_budget", label: "予算感（差し支えなければ）" }
+    ]},
+    { id: "s12", num: "12", code: "APPROVAL", title: "承認フロー・その他", subtitle: "決裁と連絡のルール。", fields: [
+      { type: "textarea", key: "br_approver", label: "最終決裁者（お名前・立場）" },
+      { type: "textarea", key: "br_others", label: "その他伝えたいこと" }
+    ]}
+  ]
+};
+
+const TEMPLATES = {
+  web: TEMPLATE_WEB,
+  logo: TEMPLATE_LOGO,
+  brochure: TEMPLATE_BROCHURE
+};
+const DEFAULT_TEMPLATE_ID = "web";
+
+// 起動時のオリジナル form/toc の innerHTML を保持（web テンプレート復元用）
+let _originalFormHtml = null;
+let _originalTocHtml = null;
+
+function captureOriginalHtml(){
+  const f = document.getElementById("form");
+  const t = document.getElementById("tocContainer");
+  if (f && _originalFormHtml === null) _originalFormHtml = f.innerHTML;
+  if (t && _originalTocHtml === null) _originalTocHtml = t.innerHTML;
+}
+
+function renderTemplate(templateId){
+  const tpl = TEMPLATES[templateId] || TEMPLATES[DEFAULT_TEMPLATE_ID];
+  const form = document.getElementById("form");
+  const toc = document.getElementById("tocContainer");
+  if (!form || !toc) return;
+  if (tpl.__hardcoded){
+    // web テンプレート：元の HTML を復元
+    if (_originalFormHtml !== null) form.innerHTML = _originalFormHtml;
+    if (_originalTocHtml !== null) toc.innerHTML = _originalTocHtml;
+    return;
+  }
+  // TOC 生成
+  const tocHtml =
+    '<div class="toc"><h3>CONTENTS</h3><ol>'
+    + tpl.toc.map(t => '<li><a href="#' + t.id + '">' + escapeHtml(t.label) + '</a></li>').join("")
+    + '</ol></div>';
+  toc.innerHTML = tocHtml;
+
+  // セクション生成
+  form.innerHTML = tpl.sections.map(sec => {
+    const fields = sec.fields.map(renderField).join("");
+    return (
+      '<section id="' + sec.id + '">'
+      + '<h2><span class="num">' + escapeHtml(sec.num) + '</span>' + escapeHtml(sec.code) + '</h2>'
+      + '<div class="title">' + escapeHtml(sec.title) + '</div>'
+      + '<div class="subtitle">' + escapeHtml(sec.subtitle) + '</div>'
+      + fields
+      + '</section>'
+    );
+  }).join("");
+}
+
+function renderField(f){
+  const help = f.help ? '<div class="help">' + escapeHtml(f.help).replace(/\n/g, "<br>") + '</div>' : "";
+  const label = '<label class="label">' + escapeHtml(f.label) + '</label>' + help;
+  const ph = f.placeholder ? ' placeholder="' + escapeHtml(f.placeholder) + '"' : "";
+  switch(f.type){
+    case "text":
+    case "url":
+    case "email":
+      return '<div class="field">' + label + '<input type="' + f.type + '" data-key="' + f.key + '"' + ph + ' /></div>';
+    case "textarea":
+      return '<div class="field">' + label + '<textarea data-key="' + f.key + '"' + ph + '></textarea></div>';
+    case "triple":
+      return '<div class="field">' + label
+        + '<div class="triple">'
+        + f.keys.map((k,i) => '<input type="text" data-key="' + k + '" placeholder="' + escapeHtml((f.placeholders||[])[i] || "") + '" />').join("")
+        + '</div></div>';
+    case "radio":
+      return '<div class="field">' + label
+        + '<div class="options" data-group="' + f.group + '">'
+        + f.options.map(o => '<label class="opt"><input type="radio" name="' + f.group + '" value="' + escapeHtml(o.v) + '"><span>' + escapeHtml(o.l || o.v) + '</span></label>').join("")
+        + '</div></div>';
+    case "radio_block":
+      return '<div class="field">' + label
+        + '<div class="options-block" data-group="' + f.group + '">'
+        + f.options.map(o => '<label class="opt"><input type="radio" name="' + f.group + '" value="' + escapeHtml(o.v) + '"><span>' + escapeHtml(o.l || o.v) + '</span></label>').join("")
+        + '</div></div>';
+    case "checkbox":
+      return '<div class="field">' + label
+        + '<div class="options" data-group="' + f.group + '">'
+        + f.options.map(o => '<label class="opt"><input type="checkbox" name="' + f.group + '" value="' + escapeHtml(o.v) + '"><span>' + escapeHtml(o.l || o.v) + '</span></label>').join("")
+        + '</div></div>';
+  }
+  return "";
+}
 
 // ============= Auto Save =============
 function collectFormData(){
@@ -1778,6 +2165,7 @@ async function bootstrap(){
   // === 個別プロジェクトモード ===
   document.getElementById("hearingApp").style.display = "";
   document.getElementById("projectSelector").style.display = "none";
+  captureOriginalHtml();
 
   // ?reset → 全データ削除（ローカル + クラウド）
   const params = new URLSearchParams(location.search);
@@ -1802,22 +2190,31 @@ async function bootstrap(){
     }
   }
 
-  // ローカルキャッシュ即時反映（クラウド読込前のチラつき防止）
-  const local = loadLocal();
-  if (local) applyFormData(local);
-
-  // ローカルからメタ情報を読み込み（クラウド読み込み前のフォールバック）
+  // ローカルからメタ情報を読み込み → テンプレートを先に描画
   const cachedMeta = getProjectFromLocal(PROJECT_SLUG);
   if (cachedMeta){
     CURRENT_PROJECT_META = cachedMeta;
     ADMIN_PASSPHRASE = cachedMeta.adminPassphrase || "";
     applyProjectMetaToHeader(cachedMeta);
+    renderTemplate(cachedMeta.templateId || DEFAULT_TEMPLATE_ID);
   }
+
+  // ローカルキャッシュ即時反映（テンプレート描画後）
+  const local = loadLocal();
+  if (local) applyFormData(local);
 
   await initCloud();
 
-  // クラウドからメタを取得（passphrase 更新）
+  // クラウドからメタを取得（passphrase / templateId 更新）
+  const prevTemplateId = CURRENT_PROJECT_META ? (CURRENT_PROJECT_META.templateId || DEFAULT_TEMPLATE_ID) : null;
   await loadProjectMetaFromCloud();
+  const nextTemplateId = CURRENT_PROJECT_META ? (CURRENT_PROJECT_META.templateId || DEFAULT_TEMPLATE_ID) : DEFAULT_TEMPLATE_ID;
+  if (nextTemplateId !== prevTemplateId){
+    renderTemplate(nextTemplateId);
+    // 再描画したのでローカルデータを再適用
+    const l2 = loadLocal();
+    if (l2) applyFormData(l2);
+  }
 
   // クラウド未接続時：警告バナー表示（adminモードは除外）
   if (!cloudReady && !isAdmin()){
@@ -1901,7 +2298,10 @@ async function loadProjectMetaFromCloud(){
     const metaRef = fs.doc(db, "hearing_projects", PROJECT_SLUG);
     const snap = await fs.getDoc(metaRef);
     if (snap.exists()){
-      const meta = { id: PROJECT_SLUG, ...snap.data() };
+      const raw = snap.data();
+      if (raw.updatedAt && raw.updatedAt.toMillis) raw.updatedAt = raw.updatedAt.toMillis();
+      if (raw.createdAt && raw.createdAt.toMillis) raw.createdAt = raw.createdAt.toMillis();
+      const meta = { id: PROJECT_SLUG, ...raw };
       CURRENT_PROJECT_META = meta;
       ADMIN_PASSPHRASE = meta.adminPassphrase || ADMIN_PASSPHRASE;
       applyProjectMetaToHeader(meta);
@@ -1967,6 +2367,8 @@ function renderProjectList(projects){
     card.className = "project-card";
     const dateStr = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString("ja-JP")
                     : (p.createdAt ? new Date(p.createdAt).toLocaleDateString("ja-JP") : "");
+    const tpl = TEMPLATES[p.templateId] || null;
+    const tplTag = tpl ? tpl.hashtag : "";
     card.innerHTML =
       '<div class="p-actions">'
       + '<button class="p-btn" title="URL・パスワード表示" onclick="event.stopPropagation();showUrlModal(\'' + p.id + '\')">🔗</button>'
@@ -1974,26 +2376,48 @@ function renderProjectList(projects){
       + '</div>'
       + '<div class="p-name">' + escapeHtml(p.name || p.id) + '</div>'
       + '<div class="p-purpose">' + escapeHtml((p.project || "") + (p.project && p.purpose ? " · " : "") + (p.purpose || "")) + '</div>'
+      + (tplTag ? '<div class="p-tag">' + escapeHtml(tplTag) + '</div>' : '')
+      + '<div class="p-entries">'
+      +   '<button class="p-entry p-entry-client" onclick="event.stopPropagation();openHearing(\'' + p.id + '\',\'client\')">📝 クライアント入力</button>'
+      +   '<button class="p-entry p-entry-admin" onclick="event.stopPropagation();openHearing(\'' + p.id + '\',\'admin\')">🔒 GROW UP 閲覧</button>'
+      + '</div>'
       + '<div class="p-meta"><span>' + escapeHtml(p.id) + '</span><span>' + dateStr + '</span></div>';
-    card.onclick = () => openHearing(p.id);
     container.appendChild(card);
   });
 }
 
-function openHearing(slug){
+function openHearing(slug, mode){
   const meta = getProjectFromLocal(slug);
+  const isAdminMode = (mode === 'admin');
   if (meta && meta.externalUrl){
     // 外部URLが設定されている場合はそちらへ
-    window.open(meta.externalUrl, "_blank");
+    const sep = meta.externalUrl.includes("?") ? "&" : "?";
+    const url = isAdminMode
+      ? meta.externalUrl + sep + "admin=" + encodeURIComponent(meta.adminPassphrase || "")
+      : meta.externalUrl;
+    window.open(url, "_blank");
     return;
   }
-  location.href = location.pathname + "?p=" + encodeURIComponent(slug);
+  let url = location.pathname + "?p=" + encodeURIComponent(slug);
+  if (isAdminMode) url += "&admin=" + encodeURIComponent((meta && meta.adminPassphrase) || "");
+  // 閲覧モードは別タブで開く（管理と入力を同時に見られるように）
+  if (isAdminMode) window.open(url, "_blank");
+  else location.href = url;
+}
+
+function onTemplateChange(prefix){
+  const sel = document.getElementById(prefix + "_template");
+  const purposeInput = document.getElementById(prefix + "_purpose");
+  if (!sel || !purposeInput) return;
+  const tpl = TEMPLATES[sel.value];
+  if (tpl) purposeInput.value = tpl.purpose_default;
 }
 
 async function createNewHearing(){
   const client = document.getElementById("np_client").value.trim();
   const project = document.getElementById("np_project").value.trim();
   const purpose = document.getElementById("np_purpose").value.trim() || "デザインヒアリング";
+  const templateId = document.getElementById("np_template").value || DEFAULT_TEMPLATE_ID;
   if (!client){ alert("クライアント名を入力してください"); return; }
 
   const slug = generateSlug(client);
@@ -2003,6 +2427,7 @@ async function createNewHearing(){
     name: client,
     project: project,
     purpose: purpose,
+    templateId: templateId,
     adminPassphrase: generatePassphrase(),
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -2020,6 +2445,7 @@ async function createNewHearing(){
         name: meta.name,
         project: meta.project,
         purpose: meta.purpose,
+        templateId: meta.templateId,
         adminPassphrase: meta.adminPassphrase,
         createdYm: meta.createdYm,
         createdAt: fs.serverTimestamp(),
@@ -2039,6 +2465,7 @@ async function importExistingHearing(){
   const project = document.getElementById("ip_project").value.trim();
   const purpose = document.getElementById("ip_purpose").value.trim() || "デザインヒアリング";
   const external = document.getElementById("ip_external").value.trim();
+  const templateId = document.getElementById("ip_template").value || DEFAULT_TEMPLATE_ID;
   if (!slug){ alert("slug を入力してください（英数字小文字）"); return; }
   if (!/^[a-z0-9_-]+$/.test(slug)){ alert("slug は英数字・ハイフン・アンダースコアのみ使用可能です"); return; }
   if (!client){ alert("クライアント名を入力してください"); return; }
@@ -2049,6 +2476,7 @@ async function importExistingHearing(){
     name: client,
     project: project,
     purpose: purpose,
+    templateId: templateId,
     adminPassphrase: pass,
     externalUrl: external || "",
     createdAt: Date.now(),
@@ -2065,6 +2493,7 @@ async function importExistingHearing(){
         name: meta.name,
         project: meta.project,
         purpose: meta.purpose,
+        templateId: meta.templateId,
         adminPassphrase: meta.adminPassphrase,
         externalUrl: meta.externalUrl,
         createdYm: meta.createdYm,
@@ -2145,6 +2574,7 @@ function copyUrl(id, btn){
 // window に公開
 window.createNewHearing = createNewHearing;
 window.importExistingHearing = importExistingHearing;
+window.onTemplateChange = onTemplateChange;
 window.deleteHearing = deleteHearing;
 window.openHearing = openHearing;
 window.showUrlModal = showUrlModal;
